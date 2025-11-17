@@ -24,22 +24,30 @@ services:
       - prometheus
     restart: unless-stopped
 
-  node-exporter:
+  nodeexporter:
     image: prom/node-exporter:latest
-    container_name: node-exporter
+    container_name: nodeexporter
     ports:
       - "9100:9100"
     restart: unless-stopped
-
-  html-app:
-    image: nginx:alpine
-    container_name: html-app
+  
+  nginx:
+    image: nginx:latest
+    container_name: nginx
     ports:
       - "8080:80"
-    volumes:
-      - ./html-app/index.html:/usr/share/nginx/html/index.html
-      - ./html-app/metrics.txt:/usr/share/nginx/html/metrics
-    restart: unless-stopped
+  
+  nginxexporter:
+    image: nginx/nginx-prometheus-exporter
+    container_name: nginxexporter
+    ports:
+      - "9113:9113"
+    command: '--nginx.scrape-uri=http://nginx:80/stub_status'
+    depends_on:
+      - nginx
 
 volumes:
   grafana-data:
+
+networks:
+  monitor-net:
