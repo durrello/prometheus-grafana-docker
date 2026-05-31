@@ -1,0 +1,5 @@
+# Environment files with credentials
+.env
+
+# Grafana local data
+grafana-data/
