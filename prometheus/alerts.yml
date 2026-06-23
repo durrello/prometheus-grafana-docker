@@ -1,10 +1,48 @@
 groups:
-  - name: example_alerts
+  - name: system_alerts
     rules:
+      # High CPU: less than 20% idle (i.e. >80% busy) averaged over 5m, per instance.
+      # The original rule compared a raw counter to 20, which never fires correctly.
       - alert: HighCPUUsage
-        expr: node_cpu_seconds_total{mode="idle"} < 20
-        for: 1m
+        expr: >
+          100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "CPU usage is high"
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 80% (current: {{ printf \"%.1f\" $value }}%) for 5 minutes."
+
+      # High memory: available memory below 10% of total.
+      - alert: HighMemoryUsage
+        expr: >
+          (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Available memory is below 10% for 5 minutes."
+
+      # Low disk space: root filesystem below 10% free.
+      - alert: LowDiskSpace
+        expr: >
+          (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Root filesystem has less than 10% free space."
+
+  - name: target_alerts
+    rules:
+      # Any scrape target down for more than 1 minute.
+      - alert: TargetDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target {{ $labels.job }} is down"
+          description: "{{ $labels.instance }} ({{ $labels.job }}) has been unreachable for 1 minute."

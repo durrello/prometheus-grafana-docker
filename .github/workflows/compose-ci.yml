@@ -10,8 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Validate docker-compose
         run: docker compose config -q
+
+      - name: Validate Prometheus config & alert rules (promtool)
+        run: |
+          docker run --rm -v "$PWD/prometheus":/etc/prometheus \
+            --entrypoint promtool prom/prometheus:latest \
+            check config /etc/prometheus/prometheus.yml
+
       - name: Lint Dockerfiles (hadolint)
         uses: hadolint/hadolint-action@v3.1.0
         with:
