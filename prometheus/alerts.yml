@@ -1,10 +1,44 @@
 groups:
-  - name: example_alerts
+  - name: node_alerts
     rules:
+      # CPU usage high: average non-idle CPU across cores > 80% for 5m.
       - alert: HighCPUUsage
-        expr: node_cpu_seconds_total{mode="idle"} < 20
-        for: 1m
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "CPU usage is high"
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 80% (current: {{ $value | humanize }}%) for 5 minutes."
+
+      # Memory usage high: available memory < 10% of total.
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Available memory is below 10% (current: {{ $value | humanize }}%)."
+
+      # Disk space low: root filesystem < 15% free.
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Root filesystem has less than 15% free (current: {{ $value | humanize }}%)."
+
+  - name: availability_alerts
+    rules:
+      # Any scrape target down for more than 1 minute.
+      - alert: TargetDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target {{ $labels.job }} is down"
+          description: "{{ $labels.instance }} ({{ $labels.job }}) has been unreachable for over 1 minute."
